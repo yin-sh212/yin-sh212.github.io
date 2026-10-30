@@ -1,0 +1,831 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>尹盛慧</title>
+<meta name="description" content="尹盛慧，电子科技大学软件工程本科在读。">
+<meta property="og:title" content="尹盛慧">
+<meta property="og:description" content="2007.02 电子科技大学软件工程本科在读">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#f6f8fb">
+<style>
+  :root {
+    --bg: #ffffff;
+    --stage: #eef3f8;
+    --ink: #14202e;
+    --ink-soft: #35485c;
+    --muted: #6b7a8c;
+    --line: #dfe6ee;
+    --link: #1f5f8b;
+    --blue: #2b6cb0;
+    --coral: #e07a5f;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16.5px;
+    line-height: 1.8;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--link); text-decoration: none; border-bottom: 1px solid transparent; transition: border-color .15s; }
+  a:hover { border-bottom-color: currentColor; }
+  ::selection { background: #d7e6f2; }
+
+  /* ---------- stage ---------- */
+  .stage {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    height: 100svh;
+    overflow: hidden;
+    background:
+      radial-gradient(130% 100% at 50% 0%, #ffffff 0%, #e9f1f8 45%, #dbe7f2 100%);
+    border-bottom: 1px solid var(--line);
+  }
+  .canvas-wrap { position: absolute; inset: 0; }
+  #scene { display: block; width: 100%; height: 100%; }
+  .css2d { position: absolute; inset: 0; pointer-events: none; }
+
+  .hero-copy {
+    position: absolute; top: 30px; left: 32px; z-index: 3;
+    pointer-events: none; max-width: 420px;
+  }
+  .hero-copy h1 {
+    font-size: clamp(34px, 5vw, 52px); font-weight: 600;
+    letter-spacing: -.01em; margin: 0 0 10px; line-height: 1.05;
+  }
+  .hero-copy .lede { margin: 0; font-size: 16px; color: var(--ink-soft); }
+  .scroll-hint { display: block; margin-top: 10px; font-size: 14px; pointer-events: auto; }
+
+  .compass {
+    position: absolute; right: 32px; bottom: 22px; z-index: 3;
+    text-align: right; font-family: var(--mono); font-size: 12px;
+    line-height: 1.6; color: var(--muted); pointer-events: none;
+  }
+  .compass .n { display: block; font-size: 12.5px; letter-spacing: .24em; color: var(--ink-soft); }
+
+  /* ---------- side nav (text area only) ---------- */
+  .side-nav {
+    position: fixed; left: 34px; top: 50%; z-index: 30;
+    display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+    transform: translateY(-50%) translateX(-10px);
+    opacity: 0; pointer-events: none;
+    transition: opacity .38s ease, transform .38s ease;
+  }
+  .side-nav.show { opacity: 1; pointer-events: auto; transform: translateY(-50%) translateX(0); }
+  .side-nav a {
+    position: relative; display: block; padding: 7px 0 7px 20px;
+    font-size: 13px; line-height: 1.2; color: var(--muted); border: none;
+    transition: color .2s;
+  }
+  .side-nav a::after {
+    content: ''; position: absolute; left: 0; top: 50%; width: 10px; height: 1px;
+    background: var(--line); transform: translateY(-50%);
+    transition: width .22s ease, background .22s ease;
+  }
+  .side-nav a:hover { color: var(--ink); border: none; }
+  .side-nav a:hover::after { width: 15px; background: var(--muted); }
+  .side-nav a.active { color: var(--ink); }
+  .side-nav a.active::after { width: 16px; background: var(--blue); }
+  .side-nav .ext { margin-top: 12px; color: var(--ink-soft); font-size: 12.5px; }
+  .side-nav .ext::before {
+    content: ''; position: absolute; left: 0; top: 0; width: 100%; height: 1px;
+    background: var(--line);
+  }
+  .side-nav .ext::after { display: none; }
+
+  /* ---------- pin labels ---------- */
+  .pin-label {
+    pointer-events: auto; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 5px 11px; background: rgba(255,255,255,.92);
+    border: 1px solid var(--line); border-radius: 999px;
+    font-size: 12.5px; color: var(--ink); white-space: nowrap;
+    box-shadow: 0 2px 10px rgba(20,32,46,.07);
+    transform: translateY(-4px);
+    transition: border-color .15s, box-shadow .15s, transform .15s;
+  }
+  .pin-label:hover { border-color: var(--blue); box-shadow: 0 4px 16px rgba(43,108,176,.16); transform: translateY(-5px); }
+  .pin-label .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--blue); flex: none; }
+  .pin-label.home .dot { background: var(--coral); }
+  .pin-label.origin .dot { background: #334155; }
+
+  /* ---------- panel ---------- */
+  .panel {
+    position: absolute; left: 0; top: 0; z-index: 10; width: 340px;
+    background: rgba(255,255,255,.94); backdrop-filter: blur(12px);
+    border: 1px solid var(--line); border-radius: 16px; padding: 24px 24px 22px;
+    box-shadow: 0 24px 60px -28px rgba(20,32,46,.35);
+    opacity: 0; transform: translateX(18px); pointer-events: none;
+    transition: opacity .22s ease, transform .22s ease;
+  }
+  .panel.open { opacity: 1; transform: none; pointer-events: auto; }
+  .panel-close {
+    position: absolute; top: 12px; right: 12px; width: 30px; height: 30px;
+    border: none; background: transparent; color: var(--muted);
+    font-size: 20px; line-height: 1; cursor: pointer; border-radius: 8px;
+  }
+  .panel-close:hover { background: #f0f4f8; color: var(--ink); }
+  .panel-sub { font-family: var(--mono); font-size: 11.5px; letter-spacing: .06em; color: var(--muted); margin: 0 0 6px; }
+  .panel h2 { font-size: 22px; font-weight: 600; margin: 0 0 10px; letter-spacing: -.01em; }
+  .panel p { margin: 0; font-size: 14.5px; color: var(--ink-soft); line-height: 1.75; }
+  .panel-meta { margin-top: 6px !important; font-family: var(--mono); font-size: 11.5px !important; color: var(--muted) !important; }
+  .panel-img {
+    display: block; width: 100%; height: 190px; object-fit: cover; object-position: top;
+    border-radius: 10px; border: 1px solid var(--line); margin: 0 0 16px;
+    background: var(--stage);
+  }
+  .panel-img[hidden] { display: none; }
+
+  /* ---------- fallback ---------- */
+  .fallback { display: none; }
+  body.no-3d .stage { height: auto; min-height: 0; padding: 72px 24px 48px; }
+  body.no-3d .canvas-wrap,
+  body.no-3d .compass,
+  body.no-3d .scroll-hint { display: none; }
+  body.no-3d .hero-copy { position: static; max-width: 720px; margin: 0 auto; }
+  body.no-3d .fallback {
+    display: block; max-width: 720px; margin: 22px auto 0;
+    font-size: 13.5px; color: var(--muted);
+  }
+
+  /* ---------- content ---------- */
+  .content { max-width: 720px; margin: 0 auto; padding: 0 28px; }
+  .reveal-ready .reveal {
+    opacity: 0; transform: translateY(18px);
+    transition: opacity .7s ease, transform .7s cubic-bezier(.2,.7,.3,1);
+  }
+  .reveal-ready .reveal.in { opacity: 1; transform: none; }
+  section.block { padding: 40px 0; border-top: 1px solid var(--line); }
+  section.block:first-child { border-top: none; }
+  .label { font-size: 12px; letter-spacing: .22em; color: var(--muted); margin: 0 0 12px; }
+  h2.sec { font-size: 20px; font-weight: 600; margin: 0 0 14px; letter-spacing: -.005em; }
+
+  .entry { padding: 14px 0; border-bottom: 1px solid var(--line); }
+  .entry:last-child { border-bottom: none; padding-bottom: 2px; }
+  .entry-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
+  .entry-head h3 { font-size: 16.5px; font-weight: 600; margin: 0; }
+  .entry-head h3 a { color: var(--ink); }
+  .entry-head h3 a:hover { color: var(--link); border-bottom-color: transparent; }
+  .meta { font-family: var(--mono); font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .entry p { margin: 5px 0 0; color: var(--ink-soft); font-size: 15px; line-height: 1.75; }
+
+  .contact-links { display: flex; gap: 22px; flex-wrap: wrap; margin: 4px 0 12px; font-size: 15.5px; }
+
+  footer { border-top: 1px solid var(--line); margin-top: 8px; }
+  footer p { max-width: 720px; margin: 0 auto; padding: 22px 28px 48px; font-size: 12.5px; color: var(--muted); }
+
+  /* ---------- responsive ---------- */
+  @media (max-width: 1000px) {
+    .side-nav { display: none; }
+  }
+  @media (max-width: 760px) {
+    .stage { height: 100vh; height: 100svh; min-height: 0; display: flex; flex-direction: column; border-bottom: 1px solid var(--line); }
+    .hero-copy { position: static; flex: none; padding: 26px 18px 0; max-width: none; }
+    .hero-copy h1 { font-size: 34px; margin-bottom: 8px; }
+    .hero-copy .lede { font-size: 14.5px; }
+    .canvas-wrap { position: relative; inset: auto; flex: 1 1 auto; height: auto; min-height: 0; margin-top: 6px; }
+    .pin-label {
+      font-size: 11.5px; padding: 0; gap: 0; background: none; border: none;
+      box-shadow: none; transform: none; border-radius: 0;
+      text-shadow: 0 1px 3px #fff, 0 0 7px #fff, 0 0 12px #fff;
+    }
+    .pin-label:hover { border: none; box-shadow: none; transform: none; }
+    .pin-label .dot { display: none; }
+    .panel { left: 12px; right: 12px; width: auto; top: auto; bottom: 12px; transform: translateY(18px); }
+    .panel.open { transform: none; }
+    .content { padding: 0 18px; }
+    .entry-head { flex-direction: column; gap: 2px; }
+    footer p { padding: 20px 18px 40px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    * { transition: none !important; animation: none !important; }
+    .reveal-ready .reveal { opacity: 1; transform: none; }
+  }
+  /* hover-driven panel needs no close button on pointer devices */
+  @media (hover: hover) and (pointer: fine) and (min-width: 761px) {
+    .panel-close { display: none; }
+  }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+
+<section class="stage" id="top">
+  <div class="hero-copy">
+    <h1>尹盛慧</h1>
+    <p class="lede">电子科技大学软件工程本科在读。</p>
+    <a class="scroll-hint" href="#work">跳过地图，看文字版 ↓</a>
+  </div>
+
+  <div class="canvas-wrap"><canvas id="scene" aria-hidden="true"></canvas></div>
+
+  <div class="compass" aria-hidden="true"><span class="n">N ↑</span></div>
+
+  <aside class="panel" id="panel" aria-live="polite">
+    <button class="panel-close" id="panelClose" aria-label="关闭">×</button>
+    <img class="panel-img" id="pImg" alt="" hidden>
+    <p class="panel-sub" id="pSub"></p>
+    <h2 id="pTitle"></h2>
+    <p class="panel-meta" id="pMeta"></p>
+  </aside>
+
+  <div class="fallback" id="fallback">3D 地图没有加载出来。下面是完整文字版。</div>
+</section>
+
+<main class="content">
+
+  <section class="block reveal" id="work">
+    <p class="label">做过的事</p>
+
+    <div class="entry">
+      <div class="entry-head"><h3>B 站 · Dejavu Web APM</h3><span class="meta">前端实习 · 2025.10–2026.02</span></div>
+      <p>做 AI 修复建议、性能监控大盘和周报订阅。AI 建议走 SSE 流式输出，中途踩过 Vite 代理缓冲把流截断的坑；大盘的 ECharts 图表用 markRaw 绕开响应式代理，首屏不再卡。</p>
+    </div>
+
+    <div class="entry">
+      <div class="entry-head"><h3>智慧建筑能耗平台</h3><span class="meta">A 类 A08 · 2026.03–05</span></div>
+      <p>第十七届中国大学生服务外包创新创业大赛 A 类 A08 赛题，中建八局二建命题：能耗数据管理、查询统计和大模型运维。规范问答用混合检索 RAG，数据分析用受限的 NL2SQL，前面加一层意图路由。</p>
+    </div>
+
+    <div class="entry">
+      <div class="entry-head"><h3>形界智维 · FrameX</h3><span class="meta">全栈实习 · 2026.07–2026.10</span></div>
+      <p>给 Genesis 数字人直播和 RISE 赛车模型做后端。AI 网关统一模型的进出：路由、鉴权、流式转发和用量计量；实时会话做排队与 Worker 调度；支付走 Adyen，Credits 按秒计费。</p>
+    </div>
+  </section>
+
+  <section class="block reveal" id="hobby">
+    <p class="label">业余</p>
+    <h2 class="sec">把兴趣做成工具</h2>
+
+    <div class="entry">
+      <div class="entry-head"><h3>图寻</h3><span class="meta">2026.05</span></div>
+      <p>玩看图猜地点的游戏，为了赢写了几本判定手册，又做了个 AI 视觉定位的浏览器扩展。</p>
+    </div>
+
+    <div class="entry">
+      <div class="entry-head"><h3><a href="https://talk-arena.vercel.app" target="_blank" rel="noopener">山东人的饭桌</a></h3><span class="meta">2026.01</span></div>
+      <p>表达训练模拟器：在家庭饭局、商务谈判、群面里和 AI 角色对练，气场值随对话变化。Datawhale × 魔搭 Hackathon 三等奖，已上线。</p>
+    </div>
+  </section>
+
+  <section class="block reveal" id="contact">
+    <p class="label">联系</p>
+    <h2 class="sec">来聊聊</h2>
+    <div class="contact-links">
+      <a href="https://github.com/yin-sh212" target="_blank" rel="noopener">GitHub</a>
+      <a href="mailto:366337425@qq.com">366337425@qq.com</a>
+    </div>
+  </section>
+
+</main>
+
+<nav class="side-nav" id="sideNav" aria-label="页面导航">
+  <a href="#work">做过</a>
+  <a href="#hobby">业余</a>
+  <a href="#contact">联系</a>
+  <a class="ext" href="https://github.com/yin-sh212" target="_blank" rel="noopener">GitHub ↗</a>
+</nav>
+
+<footer><p>© 2026 尹盛慧 · 地图数据来自 阿里云 DataV · Three.js 绘制</p></footer>
+
+<script>
+  const stageEl = document.querySelector('.stage');
+  const navEl = document.getElementById('sideNav');
+  const navLinks = [...navEl.querySelectorAll('a[href^="#"]')];
+  const navTargets = navLinks.map((a) => document.getElementById(a.getAttribute('href').slice(1)));
+
+  function syncNav() {
+    const y = window.scrollY, vh = window.innerHeight;
+    navEl.classList.toggle('show', y + vh * 0.5 > stageEl.offsetHeight);
+    const mark = y + vh * 0.5;
+    const atBottom = y + vh >= document.documentElement.scrollHeight - 4;
+    let current = null;
+    if (atBottom) current = navTargets[navTargets.length - 1];
+    else navTargets.forEach((s) => { if (s && s.offsetTop <= mark) current = s; });
+    navLinks.forEach((a, i) => a.classList.toggle('active', navTargets[i] === current));
+  }
+  window.addEventListener('scroll', syncNav, { passive: true });
+  window.addEventListener('resize', syncNav);
+  syncNav();
+
+  const revealEls = document.querySelectorAll('.reveal');
+  if ('IntersectionObserver' in window && revealEls.length) {
+    document.body.classList.add('reveal-ready');
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((en) => {
+        if (!en.isIntersecting) return;
+        en.target.classList.add('in');
+        io.unobserve(en.target);
+      });
+    }, { rootMargin: '0px 0px -18% 0px', threshold: 0.15 });
+    revealEls.forEach((el) => io.observe(el));
+  }
+</script>
+
+<script src="china-map.js"></script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+const CITIES = [
+  { id: 'xz', name: '徐州', kind: 'origin', lon: 117.18, lat: 34.26, off: [-2.7, -0.8],
+    sub: '家乡 · 2007.02', meta: '江苏 徐州' },
+  { id: 'cd', name: '成都', kind: 'home', lon: 104.06, lat: 30.57, off: [0, 2.4],
+    sub: '学校 · 2024.09 至今', meta: '四川 成都' },
+  { id: 'sh', name: '上海', kind: 'work', lon: 121.47, lat: 31.23, off: [2.3, 0.3],
+    sub: '哔哩哔哩 · 前端实习', meta: '2025.10–2026.02',
+    img: 'bili-apm.jpg', alt: '前端监控平台的 AI 智能诊断页面' },
+  { id: 'bj', name: '北京', kind: 'work', lon: 116.41, lat: 39.90, off: [-1.8, -1.5],
+    sub: '形界智维 · 全栈实习', meta: '2026.07–2026.10',
+    img: 'genesis-hero.jpg', alt: 'Genesis 模型官网首页' }
+];
+
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const wrap = document.querySelector('.canvas-wrap');
+const canvas = document.getElementById('scene');
+
+const pTitle = document.getElementById('pTitle');
+const pSub = document.getElementById('pSub');
+const pImg = document.getElementById('pImg');
+const pMeta = document.getElementById('pMeta');
+const panel = document.getElementById('panel');
+const panelClose = document.getElementById('panelClose');
+
+let activeNode = null;
+let positionPanel = () => {};
+
+function openPanel(node) {
+  activeNode = node;
+  if (node.img) {
+    pImg.src = node.img;
+    pImg.alt = node.alt || '';
+    pImg.hidden = false;
+  } else {
+    pImg.hidden = true;
+    pImg.removeAttribute('src');
+  }
+  pTitle.textContent = node.name;
+  pSub.textContent = node.sub || '';
+  pMeta.textContent = node.meta || '';
+  positionPanel();
+  panel.classList.add('open');
+}
+function closePanel() { panel.classList.remove('open'); activeNode = null; }
+panelClose.addEventListener('click', closePanel);
+window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePanel(); });
+
+// hover opens the card, so give the pointer time to travel from pin to card
+const canHover = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+let closeTimer = 0;
+function keepPanel() { clearTimeout(closeTimer); closeTimer = 0; }
+function scheduleClose() {
+  clearTimeout(closeTimer);
+  closeTimer = setTimeout(closePanel, 170);
+}
+if (canHover) {
+  panel.addEventListener('mouseenter', keepPanel);
+  panel.addEventListener('mouseleave', scheduleClose);
+}
+
+function webglAvailable() {
+  try {
+    const c = document.createElement('canvas');
+    return !!(window.WebGLRenderingContext && (c.getContext('webgl2') || c.getContext('webgl')));
+  } catch (e) { return false; }
+}
+
+if (!webglAvailable()) {
+  document.body.classList.add('no-3d');
+} else {
+  init();
+}
+
+function init() {
+  const w = wrap.clientWidth, h = wrap.clientHeight;
+
+  const scene = new THREE.Scene();
+  const world = new THREE.Group();
+  scene.add(world);
+  const mobile = window.matchMedia('(max-width: 760px)').matches;
+  const ELEV = 58 * Math.PI / 180;
+  const MAP_W = mobile ? 22.8 : 21.8, MAP_D = 15.6;
+  const camTarget = new THREE.Vector3(0, 0.2, 0.7);
+  const camera = new THREE.PerspectiveCamera(mobile ? 44 : 40, w / h, 0.1, 200);
+
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setSize(w, h);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+  const labelRenderer = new CSS2DRenderer();
+  labelRenderer.setSize(w, h);
+  labelRenderer.domElement.className = 'css2d';
+  wrap.appendChild(labelRenderer.domElement);
+
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.target.copy(camTarget);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.06;
+  controls.enablePan = false;
+  controls.minDistance = 10;
+  controls.maxDistance = 48;
+  controls.minPolarAngle = 0.2;
+  controls.maxPolarAngle = 1.1;
+  controls.minAzimuthAngle = -0.85;
+  controls.maxAzimuthAngle = 0.85;
+  controls.rotateSpeed = 0.5;
+  controls.zoomSpeed = 0.55;
+
+  let userMoved = false;
+  let dragging = false;
+  let hoverAt = 0;
+  controls.addEventListener('start', () => { userMoved = true; dragging = true; });
+  controls.addEventListener('end', () => {
+    dragging = false;
+    hoverAt = performance.now() + 220;
+  });
+
+  function fitCamera() {
+    const nw = wrap.clientWidth, nh = wrap.clientHeight;
+    if (!nw || !nh) return;
+    camera.aspect = nw / nh;
+    const tl = Math.tan((camera.fov / 2) * Math.PI / 180);
+    const fitH = (MAP_W / 2 + 0.8) / (tl * camera.aspect);
+    const fitV = ((MAP_D / 2) * Math.sin(ELEV) + 1.1) / tl;
+    const d = Math.max(fitH, fitV) * 1.03;
+    camera.position.set(
+      camTarget.x,
+      camTarget.y + Math.sin(ELEV) * d,
+      camTarget.z + Math.cos(ELEV) * d
+    );
+    camera.updateProjectionMatrix();
+    controls.target.copy(camTarget);
+    controls.update();
+  }
+  fitCamera();
+
+  // keep the panel anchored beside the selected city
+  const stageEl = document.querySelector('.stage');
+  positionPanel = () => {
+    if (!activeNode) return;
+    if (window.matchMedia('(max-width: 760px)').matches) {
+      panel.style.left = '';
+      panel.style.top = '';
+      return;
+    }
+    const w = wrap.clientWidth, h = wrap.clientHeight;
+    if (!w || !h) return;
+    const v = activeNode.pos.clone();
+    v.y += 0.3;
+    v.project(camera);
+    const mx = (v.x * 0.5 + 0.5) * w;
+    const my = (-v.y * 0.5 + 0.5) * h;
+    const st = stageEl.clientWidth, sh = stageEl.clientHeight;
+    const pw = panel.offsetWidth, ph = panel.offsetHeight;
+    const gap = 26, pad = 16;
+
+    // screen positions of all city labels, so the card can avoid covering them
+    const labels = CITIES.map((c) => {
+      const o = c.off || [0, 0];
+      const v = new THREE.Vector3(o[0], 0.95, o[1]).add(c.pos).project(camera);
+      return [(v.x * 0.5 + 0.5) * w, (-v.y * 0.5 + 0.5) * h];
+    });
+    const own = labels[CITIES.indexOf(activeNode)] || [mx, my];
+    const lhw = 34, lhh = 16;
+    const hits = (l, t, [x, y]) =>
+      l < x + lhw && l + pw > x - lhw && t < y + lhh && t + ph > y - lhh;
+
+    // try beside the pin's label first, then beside the pin itself; the spot
+    // closest to its anchor that covers no city label wins
+    const anchors = [
+      { x: own[0], y: own[1], gapX: lhw + 14, rank: 0 },
+      { x: mx, y: my, gapX: gap, rank: 1 }
+    ];
+    const topMin = pad, topMax = sh - ph - pad;
+
+    let chosen = null, bestScore = Infinity, fallback = null, fallbackScore = Infinity;
+    anchors.forEach((a) => {
+      const ay = a.y - ph * 0.45;
+      [a.x + a.gapX, a.x - a.gapX - pw].forEach((l) => {
+        if (l < pad || l + pw > st - pad) return;
+        for (let t = topMin; t <= topMax; t += 8) {
+          const covered = labels.reduce((n, p) => n + (hits(l, t, p) ? 1 : 0), 0);
+          const score = Math.abs(t - ay) + a.rank * 30 + covered * 2000;
+          if (covered === 0 && score < bestScore) { bestScore = score; chosen = [l, t]; }
+          if (score < fallbackScore) { fallbackScore = score; fallback = [l, t]; }
+        }
+      });
+    });
+    if (!chosen) chosen = fallback || [Math.max(pad, Math.min(mx + gap, st - pw - pad)), Math.max(topMin, Math.min(my - ph * 0.45, topMax))];
+    panel.style.left = chosen[0] + 'px';
+    panel.style.top = chosen[1] + 'px';
+  };
+  controls.addEventListener('change', () => { if (activeNode) positionPanel(); });
+
+  scene.add(new THREE.HemisphereLight(0xffffff, 0xdbe6f0, 1.15));
+  const dir = new THREE.DirectionalLight(0xffffff, 1.75);
+  dir.position.set(10, 18, 8);
+  dir.castShadow = true;
+  dir.shadow.mapSize.set(2048, 2048);
+  dir.shadow.camera.left = -22; dir.shadow.camera.right = 22;
+  dir.shadow.camera.top = 22; dir.shadow.camera.bottom = -22;
+  dir.shadow.camera.near = 1; dir.shadow.camera.far = 70;
+  dir.shadow.bias = -0.0005;
+  dir.shadow.normalBias = 0.03;
+  scene.add(dir);
+
+  // ground with a faint survey grid
+  function gridTexture() {
+    const s = 1024;
+    const c = document.createElement('canvas'); c.width = c.height = s;
+    const g = c.getContext('2d');
+    g.fillStyle = '#ffffff'; g.fillRect(0, 0, s, s);
+    g.strokeStyle = 'rgba(31,95,139,0.10)'; g.lineWidth = 1;
+    for (let i = 0; i <= s; i += 64) {
+      g.beginPath(); g.moveTo(i, 0); g.lineTo(i, s); g.stroke();
+      g.beginPath(); g.moveTo(0, i); g.lineTo(s, i); g.stroke();
+    }
+    g.strokeStyle = 'rgba(31,95,139,0.22)';
+    for (let i = 0; i <= s; i += 256) {
+      g.beginPath(); g.moveTo(i, 0); g.lineTo(i, s); g.stroke();
+      g.beginPath(); g.moveTo(0, i); g.lineTo(s, i); g.stroke();
+    }
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = 4;
+    return t;
+  }
+
+  function fadeTexture() {
+    const s = 512;
+    const c = document.createElement('canvas'); c.width = c.height = s;
+    const g = c.getContext('2d');
+    const grad = g.createRadialGradient(s / 2, s / 2, s * 0.18, s / 2, s / 2, s * 0.5);
+    grad.addColorStop(0, '#ffffff');
+    grad.addColorStop(0.62, '#ffffff');
+    grad.addColorStop(1, '#000000');
+    g.fillStyle = grad; g.fillRect(0, 0, s, s);
+    const t = new THREE.CanvasTexture(c);
+    return t;
+  }
+
+  const grid = gridTexture();
+  grid.wrapS = grid.wrapT = THREE.RepeatWrapping;
+  grid.repeat.set(2, 2);
+
+  const ground = new THREE.Mesh(
+    new THREE.CircleGeometry(24, 96),
+    new THREE.MeshStandardMaterial({
+      map: grid, color: 0xf7fafd, roughness: 1, metalness: 0,
+      alphaMap: fadeTexture(), transparent: true, depthWrite: false
+    })
+  );
+  ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = true;
+  world.add(ground);
+
+  // ---- 真实地图：等距圆柱投影 + 纬度校正 ----
+  const LON0 = 104.3, LAT0 = 35.9, KX = Math.cos(LAT0 * Math.PI / 180) * 0.42, KZ = 0.42;
+  const px = (lon) => (lon - LON0) * KX;
+  const pz = (lat) => -(lat - LAT0) * KZ;
+
+  const GEO = window.CHINA_GEO || { provinces: [], outline: [] };
+  // 南海诸岛的零散小岛会把画布拉长一倍，只留海南、台湾及以北
+  const keep = (ring) => { let m = -90; for (const p of ring) if (p[1] > m) m = p[1]; return m > 17.5; };
+
+  const landMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0 });
+  const provSeg = [];
+  const outSeg = [];
+
+  GEO.provinces.forEach((rings) => rings.forEach((ring) => {
+    if (!keep(ring)) return;
+    const shape = new THREE.Shape();
+    for (let i = 0; i < ring.length; i++) {
+      const x = px(ring[i][0]), z = pz(ring[i][1]);
+      if (i === 0) shape.moveTo(x, -z); else shape.lineTo(x, -z);
+    }
+    const mesh = new THREE.Mesh(
+      new THREE.ExtrudeGeometry(shape, { depth: 0.14, bevelEnabled: false }), landMat
+    );
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.receiveShadow = true;
+    world.add(mesh);
+    for (let i = 0; i < ring.length; i++) {
+      const a = ring[i], b = ring[(i + 1) % ring.length];
+      provSeg.push(px(a[0]), 0.16, pz(a[1]), px(b[0]), 0.16, pz(b[1]));
+    }
+  }));
+
+  GEO.outline.forEach((rings) => rings.forEach((ring) => {
+    if (!keep(ring)) return;
+    for (let i = 0; i < ring.length; i++) {
+      const a = ring[i], b = ring[(i + 1) % ring.length];
+      outSeg.push(px(a[0]), 0.175, pz(a[1]), px(b[0]), 0.175, pz(b[1]));
+    }
+  }));
+
+  function segments(arr, color, opacity) {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3));
+    return new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color, transparent: true, opacity }));
+  }
+  world.add(segments(provSeg, 0xa8bccd, 0.8));
+  world.add(segments(outSeg, 0x46637d, 0.9));
+
+  // ---- 四个城市 ----
+  CITIES.forEach((c) => { c.pos = new THREE.Vector3(px(c.lon), 0, pz(c.lat)); });
+  const byId = (id) => CITIES.find((c) => c.id === id);
+
+  // 徐州 → 成都 → 上海 → 北京
+  const route = new THREE.CurvePath();
+  [['xz', 'cd', 2.6], ['cd', 'sh', 3.2], ['sh', 'bj', 2.3]].forEach(([a, b, h]) => {
+    const p1 = byId(a).pos.clone().setY(0.28);
+    const p2 = byId(b).pos.clone().setY(0.28);
+    const mid = p1.clone().add(p2).multiplyScalar(0.5); mid.y = h;
+    route.add(new THREE.QuadraticBezierCurve3(p1, mid, p2));
+  });
+  world.add(new THREE.Mesh(
+    new THREE.TubeGeometry(route, 240, 0.03, 8, false),
+    new THREE.MeshBasicMaterial({ color: 0x7f9db9, transparent: true, opacity: 0.9 })
+  ));
+
+  const tracer = new THREE.Mesh(
+    new THREE.SphereGeometry(0.075, 16, 12),
+    new THREE.MeshStandardMaterial({ color: 0xe07a5f, emissive: 0xe07a5f, emissiveIntensity: 0.5 })
+  );
+  world.add(tracer);
+
+  const pickables = [];
+
+  function createMarker(node) {
+    const g = new THREE.Group();
+    g.position.copy(node.pos);
+    const color = node.kind === 'home' ? 0xe07a5f : node.kind === 'origin' ? 0x334155 : 0x2b6cb0;
+
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(0.36, 0.46, 44),
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.55, side: THREE.DoubleSide })
+    );
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = 0.165;
+    g.add(ring);
+
+    const dot = new THREE.Mesh(
+      new THREE.SphereGeometry(0.17, 20, 14),
+      new THREE.MeshBasicMaterial({ color })
+    );
+    dot.position.y = 0.21;
+    g.add(dot);
+
+    const hit = new THREE.Mesh(
+      new THREE.CircleGeometry(0.62, 24),
+      new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
+    );
+    hit.rotation.x = -Math.PI / 2;
+    hit.position.y = 0.158;
+    g.add(hit);
+
+    const el = document.createElement('div');
+    el.className = 'pin-label ' + node.kind;
+    el.innerHTML = '<span class="dot"></span><span class="nm"></span>';
+    el.querySelector('.nm').textContent = node.name;
+    el.addEventListener('click', (e) => { e.stopPropagation(); openPanel(node); });
+    el.addEventListener('mouseenter', () => {
+      if (!canHover) return;
+      if (activeNode !== node || !panel.classList.contains('open')) openPanel(node);
+      keepPanel();
+    });
+    el.addEventListener('mouseleave', () => { if (canHover) scheduleClose(); });
+
+    const o = node.off || [0, 0];
+    const label = new CSS2DObject(el);
+    label.position.set(o[0], 0.95, o[1]);
+    g.add(label);
+
+    if (Math.hypot(o[0], o[1]) > 0.4) {
+      g.add(new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(0, 0.2, 0), new THREE.Vector3(o[0], 0.8, o[1])
+        ]),
+        new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.3 })
+      ));
+    }
+
+    [ring, dot, hit].forEach((m) => { m.userData.node = node; pickables.push(m); });
+
+    return g;
+  }
+
+  CITIES.forEach((n) => world.add(createMarker(n)));
+
+  // interaction
+  const raycaster = new THREE.Raycaster();
+  const pointer = new THREE.Vector2();
+
+  function setPointer(e) {
+    const r = canvas.getBoundingClientRect();
+    pointer.x = ((e.clientX - r.left) / r.width) * 2 - 1;
+    pointer.y = -((e.clientY - r.top) / r.height) * 2 + 1;
+    raycaster.setFromCamera(pointer, camera);
+  }
+
+  canvas.addEventListener('pointermove', (e) => {
+    setPointer(e);
+    const hit = raycaster.intersectObjects(pickables, false)[0];
+    canvas.style.cursor = hit ? 'pointer' : 'grab';
+    if (!canHover || dragging || performance.now() < hoverAt) return;
+    if (hit) {
+      const node = hit.object.userData.node;
+      if (activeNode !== node || !panel.classList.contains('open')) openPanel(node);
+      keepPanel();
+    } else {
+      scheduleClose();
+    }
+  });
+  canvas.addEventListener('pointerleave', () => {
+    if (canHover && !dragging) scheduleClose();
+  });
+
+  let downPoint = null;
+  canvas.addEventListener('pointerdown', (e) => { downPoint = { x: e.clientX, y: e.clientY }; });
+  canvas.addEventListener('pointerup', (e) => {
+    if (!downPoint) return;
+    const moved = Math.hypot(e.clientX - downPoint.x, e.clientY - downPoint.y);
+    downPoint = null;
+    if (moved > 6) return;
+    setPointer(e);
+    const hit = raycaster.intersectObjects(pickables, false)[0];
+    if (hit) openPanel(hit.object.userData.node);
+    else closePanel();
+  });
+
+  // resize
+  function resize() {
+    const nw = wrap.clientWidth, nh = wrap.clientHeight;
+    if (!nw || !nh) return;
+    renderer.setSize(nw, nh);
+    labelRenderer.setSize(nw, nh);
+    if (userMoved) {
+      camera.aspect = nw / nh;
+      camera.updateProjectionMatrix();
+    } else {
+      fitCamera();
+    }
+    positionPanel();
+  }
+  window.addEventListener('resize', resize);
+
+  // animate
+  let t = 0;
+  function animate() {
+    requestAnimationFrame(animate);
+    controls.update();
+    if (!reduceMotion) {
+      t = (t + 0.0014) % 1;
+      tracer.position.copy(route.getPoint(t));
+    }
+    renderer.render(scene, camera);
+    labelRenderer.render(scene, camera);
+  }
+
+  document.body.classList.remove('no-3d');
+  window.__sceneReady = true;
+  animate();
+}
+</script>
+
+<script>
+  setTimeout(function () {
+    if (!window.__sceneReady) document.body.classList.add('no-3d');
+  }, 6000);
+</script>
+
+<noscript>
+  <style>
+    .stage { height: auto !important; padding: 72px 24px 48px !important; }
+    .canvas-wrap, .compass, .scroll-hint { display: none !important; }
+    .hero-copy { position: static !important; }
+  </style>
+</noscript>
+
+</body>
+</html>
